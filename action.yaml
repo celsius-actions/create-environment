@@ -1,0 +1,31 @@
+name: "Create environment"
+inputs:
+  environment-manager-endpoint:
+    description: "Environment Manager endpoint"
+    required: true
+  name:
+    description: "Environment name"
+    required: true
+  content-directory:
+    description: "Path to the directory with TF files"
+    required: true
+runs:
+  using: "composite"
+  steps:
+    - id: create-environment
+      run: |
+        UPLOAD_URL=($(curl \
+        --header "Content-Type: application/json" \
+        --request POST \
+        --data "{\"repo_name\":\"${{ github.repository }}\", \"environment_name\":\"${{ inputs.name }}\" }" \
+        ${{ inputs.environment-manager-endpoint }}/api/v1/environments \
+        | jq -r '."upload_url"'))
+
+        echo "::set-output name=upload-url::$(echo $UPLOAD_URL)"
+      shell: bash
+
+    - id: upload-files
+      uses: celsius-actions/upload-terraform-archive@v1
+      with:
+        content-directory: ${{ inputs.content-directory }}
+        upload-url: ${{ steps.create-environment.outputs.upload-url }}
